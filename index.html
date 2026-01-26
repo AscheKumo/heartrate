@@ -24,7 +24,7 @@
 
         .container {
             text-align: center;
-            max-width: 400px;
+            max-width: 800px;
             width: 100%;
         }
 
@@ -100,6 +100,20 @@
             opacity: 0.6;
         }
 
+        .graph-container {
+            margin-top: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        #heartRateGraph {
+            width: 100%;
+            height: 200px;
+            display: block;
+        }
+
         .error {
             color: #ff4444;
             font-size: 14px;
@@ -124,6 +138,10 @@
         </div>
         <div id="status" class="status normal"></div>
         <div id="error" class="error" style="display: none;"></div>
+        
+        <div class="graph-container">
+            <canvas id="heartRateGraph"></canvas>
+        </div>
     </div>
 
     <script>
@@ -131,9 +149,11 @@
         const ACCESS_TOKEN = 'ed500451-96a9-46ef-b648-91c79efd470d';
         const CORS_PROXY = 'https://corsproxy.io/?';
         const UPDATE_INTERVAL = 2000; // Update every 2 seconds
+        const TWO_MINUTES = 120000; // 2 minutes in milliseconds
 
         let previousHeartRate = null;
         let currentHeartRate = null;
+        let heartRateData = []; // Array to store {timestamp, heartRate}
 
         const elements = {
             heartRate: document.getElementById('heartRateValue'),
@@ -141,6 +161,112 @@
             status: document.getElementById('status'),
             error: document.getElementById('error')
         };
+
+        // Canvas setup
+        const canvas = document.getElementById('heartRateGraph');
+        const ctx = canvas.getContext('2d');
+        let animationFrameId;
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawGraph() {
+            const width = canvas.width / window.devicePixelRatio;
+            const height = canvas.height / window.devicePixelRatio;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            
+            // Horizontal grid lines
+            for (let i = 0; i <= 5; i++) {
+                const y = (height / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Vertical grid lines
+            for (let i = 0; i <= 12; i++) {
+                const x = (width / 12) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+
+            if (heartRateData.length < 2) return;
+
+            // Remove data older than 2 minutes
+            const now = Date.now();
+            heartRateData = heartRateData.filter(d => now - d.timestamp <= TWO_MINUTES);
+
+            // Calculate min and max for scaling
+            const heartRates = heartRateData.map(d => d.heartRate);
+            const minHR = Math.min(...heartRates, 40);
+            const maxHR = Math.max(...heartRates, 120);
+            const range = maxHR - minHR;
+            const padding = range * 0.2; // 20% padding
+
+            // Draw heart rate line
+            ctx.strokeStyle = '#00ff41';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // Add glow effect
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00ff41';
+
+            ctx.beginPath();
+            
+            heartRateData.forEach((data, index) => {
+                const x = width - ((now - data.timestamp) / TWO_MINUTES) * width;
+                const normalizedHR = (data.heartRate - (minHR - padding)) / (range + padding * 2);
+                const y = height - (normalizedHR * height);
+
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+            
+            // Reset shadow
+            ctx.shadowBlur = 0;
+
+            // Draw current value indicator
+            if (heartRateData.length > 0) {
+                const lastData = heartRateData[heartRateData.length - 1];
+                const normalizedHR = (lastData.heartRate - (minHR - padding)) / (range + padding * 2);
+                const y = height - (normalizedHR * height);
+                
+                ctx.fillStyle = '#00ff41';
+                ctx.beginPath();
+                ctx.arc(width, y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function animate() {
+            drawGraph();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        animate();
 
         function updateTrend() {
             if (previousHeartRate === null || currentHeartRate === null) {
@@ -190,6 +316,12 @@
                 const data = await response.json();
                 previousHeartRate = currentHeartRate;
                 currentHeartRate = data.data.heart_rate;
+
+                // Add to graph data
+                heartRateData.push({
+                    timestamp: Date.now(),
+                    heartRate: currentHeartRate
+                });
 
                 // Update display
                 elements.heartRate.textContent = currentHeartRate;
