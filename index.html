@@ -31,23 +31,8 @@
         .title {
             font-size: 24px;
             font-weight: 300;
-            margin-bottom: 20px;
+            margin-bottom: 40px;
             opacity: 0.8;
-        }
-
-        .ecg-container {
-            height: 60px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            background-color: rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-        }
-
-        #ecgCanvas {
-            width: 100%;
-            height: 100%;
-            display: block;
         }
 
         .heart-rate-display {
@@ -127,33 +112,6 @@
             opacity: 0.6;
         }
 
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 30px 0;
-        }
-
-        .stat-box {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 15px;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            opacity: 0.6;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-        }
-
         .controls {
             display: flex;
             gap: 10px;
@@ -205,23 +163,11 @@
         .loading {
             opacity: 0.5;
         }
-
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            border-radius: 50%;
-            pointer-events: none;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="title">ashlyns heartrate</div>
-        
-        <div class="ecg-container">
-            <canvas id="ecgCanvas"></canvas>
-        </div>
 
         <div class="heart-rate-display">
             <div class="heart-rate">
@@ -233,29 +179,6 @@
         </div>
         
         <div id="status" class="status normal"></div>
-        
-        <div class="stats-container">
-            <div class="stat-box">
-                <div class="stat-label">Average</div>
-                <div class="stat-value" id="avgBpm">--</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Min</div>
-                <div class="stat-value" id="minBpm">--</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Max</div>
-                <div class="stat-value" id="maxBpm">--</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Time Hot</div>
-                <div class="stat-value" id="timeHot">0:00</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Time Sleepy</div>
-                <div class="stat-value" id="timeSleepy">0:00</div>
-            </div>
-        </div>
 
         <div class="controls">
             <button class="btn" id="avgToggle">Show Average Line</button>
@@ -284,12 +207,6 @@
         let heartRateData = [];
         let showAverage = false;
         let particles = [];
-        
-        // Stats tracking
-        let sessionStart = Date.now();
-        let timeInHot = 0;
-        let timeInSleepy = 0;
-        let lastUpdateTime = Date.now();
 
         const elements = {
             heartRate: document.getElementById('heartRateValue'),
@@ -297,11 +214,6 @@
             trend: document.getElementById('trend'),
             status: document.getElementById('status'),
             error: document.getElementById('error'),
-            avgBpm: document.getElementById('avgBpm'),
-            minBpm: document.getElementById('minBpm'),
-            maxBpm: document.getElementById('maxBpm'),
-            timeHot: document.getElementById('timeHot'),
-            timeSleepy: document.getElementById('timeSleepy'),
             avgToggle: document.getElementById('avgToggle'),
             fullscreenBtn: document.getElementById('fullscreenBtn'),
             graphContainer: document.getElementById('graphContainer')
@@ -310,22 +222,12 @@
         // Canvas setup
         const canvas = document.getElementById('heartRateGraph');
         const ctx = canvas.getContext('2d');
-        
-        // ECG Canvas setup
-        const ecgCanvas = document.getElementById('ecgCanvas');
-        const ecgCtx = ecgCanvas.getContext('2d');
-        let ecgOffset = 0;
 
         function resizeCanvas() {
             const rect = canvas.getBoundingClientRect();
             canvas.width = rect.width * window.devicePixelRatio;
             canvas.height = rect.height * window.devicePixelRatio;
             ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-            
-            const ecgRect = ecgCanvas.getBoundingClientRect();
-            ecgCanvas.width = ecgRect.width * window.devicePixelRatio;
-            ecgCanvas.height = ecgRect.height * window.devicePixelRatio;
-            ecgCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
         }
 
         resizeCanvas();
@@ -360,68 +262,6 @@
             if (!bpm) return;
             const duration = 60000 / bpm; // milliseconds per beat
             elements.heartIcon.style.animation = `heartbeat ${duration}ms ease-in-out infinite`;
-        }
-
-        // ECG waveform
-        function drawECG() {
-            const width = ecgCanvas.width / window.devicePixelRatio;
-            const height = ecgCanvas.height / window.devicePixelRatio;
-            
-            ecgCtx.fillStyle = '#000';
-            ecgCtx.fillRect(0, 0, width, height);
-            
-            if (!currentHeartRate) return;
-            
-            const bpm = currentHeartRate;
-            const speed = bpm / 60 * 2; // Scale speed with heart rate
-            
-            ecgCtx.strokeStyle = '#00ff41';
-            ecgCtx.lineWidth = 2;
-            ecgCtx.shadowBlur = 8;
-            ecgCtx.shadowColor = '#00ff41';
-            
-            ecgCtx.beginPath();
-            
-            const beatWidth = width / 3; // Show ~3 beats
-            const centerY = height / 2;
-            
-            for (let x = 0; x < width + beatWidth; x += 2) {
-                const adjustedX = (x - ecgOffset) % beatWidth;
-                let y = centerY;
-                
-                // ECG wave pattern
-                if (adjustedX < beatWidth * 0.1) {
-                    y = centerY; // baseline
-                } else if (adjustedX < beatWidth * 0.15) {
-                    y = centerY + 5; // P wave
-                } else if (adjustedX < beatWidth * 0.25) {
-                    y = centerY;
-                } else if (adjustedX < beatWidth * 0.27) {
-                    y = centerY - 10; // Q
-                } else if (adjustedX < beatWidth * 0.32) {
-                    y = centerY - 30; // R peak
-                } else if (adjustedX < beatWidth * 0.35) {
-                    y = centerY + 8; // S
-                } else if (adjustedX < beatWidth * 0.5) {
-                    y = centerY; // ST segment
-                } else if (adjustedX < beatWidth * 0.65) {
-                    y = centerY - 8; // T wave
-                } else {
-                    y = centerY;
-                }
-                
-                if (x === 0) {
-                    ecgCtx.moveTo(x, y);
-                } else {
-                    ecgCtx.lineTo(x, y);
-                }
-            }
-            
-            ecgCtx.stroke();
-            ecgCtx.shadowBlur = 0;
-            
-            ecgOffset += speed;
-            if (ecgOffset > beatWidth) ecgOffset = 0;
         }
 
         // Particle system
@@ -466,40 +306,6 @@
         function bpmToY(bpm, height) {
             const normalized = (bpm - MIN_BPM) / BPM_RANGE;
             return height - (normalized * height);
-        }
-
-        function calculateStats() {
-            if (heartRateData.length === 0) return;
-            
-            const heartRates = heartRateData.map(d => d.heartRate);
-            const avg = Math.round(heartRates.reduce((a, b) => a + b, 0) / heartRates.length);
-            const min = Math.min(...heartRates);
-            const max = Math.max(...heartRates);
-            
-            elements.avgBpm.textContent = avg;
-            elements.minBpm.textContent = min;
-            elements.maxBpm.textContent = max;
-            
-            // Update time in zones
-            const now = Date.now();
-            const elapsed = (now - lastUpdateTime) / 1000;
-            
-            if (currentHeartRate > 95) {
-                timeInHot += elapsed;
-            } else if (currentHeartRate < 65) {
-                timeInSleepy += elapsed;
-            }
-            
-            lastUpdateTime = now;
-            
-            const formatTime = (seconds) => {
-                const mins = Math.floor(seconds / 60);
-                const secs = Math.floor(seconds % 60);
-                return `${mins}:${secs.toString().padStart(2, '0')}`;
-            };
-            
-            elements.timeHot.textContent = formatTime(timeInHot);
-            elements.timeSleepy.textContent = formatTime(timeInSleepy);
         }
 
         function drawGraph() {
@@ -631,7 +437,6 @@
 
         function animate() {
             drawGraph();
-            drawECG();
             updateParticles();
             requestAnimationFrame(animate);
         }
@@ -699,7 +504,6 @@
                 updateTrend();
                 updateStatus(currentHeartRate);
                 updateHeartPulse(currentHeartRate);
-                calculateStats();
 
             } catch (error) {
                 console.error('Error fetching heart rate:', error);
