@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ashlyn's Heart Rate</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 40px;
+            opacity: 0.8;
+        }
+
+        .heart-rate-display {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .heart-rate {
+            font-size: 96px;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .bpm {
+            font-size: 24px;
+            font-weight: 300;
+            opacity: 0.6;
+        }
+
+        .trend {
+            font-size: 40px;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .trend.up {
+            color: #ff4444;
+        }
+
+        .trend.down {
+            color: #44aaff;
+        }
+
+        .trend.hidden {
+            opacity: 0;
+        }
+
+        .status {
+            font-size: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 20px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .status.sleepy {
+            background-color: rgba(100, 149, 237, 0.2);
+            color: #6495ed;
+        }
+
+        .status.hot {
+            background-color: rgba(255, 68, 68, 0.2);
+            color: #ff4444;
+        }
+
+        .status.normal {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            opacity: 0.6;
+        }
+
+        .error {
+            color: #ff4444;
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 20px;
+        }
+
+        .loading {
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">ashlyns heartrate</div>
+        <div class="heart-rate-display">
+            <div class="heart-rate">
+                <span id="heartRateValue" class="loading">--</span>
+                <span id="trend" class="trend hidden"></span>
+            </div>
+            <div class="bpm">bpm</div>
+        </div>
+        <div id="status" class="status normal"></div>
+        <div id="error" class="error" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://dev.pulsoid.net/api/v1/data/heart_rate/latest';
+        const ACCESS_TOKEN = 'ed500451-96a9-46ef-b648-91c79efd470d';
+        const CORS_PROXY = 'https://corsproxy.io/?';
+        const UPDATE_INTERVAL = 2000; // Update every 2 seconds
+
+        let previousHeartRate = null;
+        let currentHeartRate = null;
+
+        const elements = {
+            heartRate: document.getElementById('heartRateValue'),
+            trend: document.getElementById('trend'),
+            status: document.getElementById('status'),
+            error: document.getElementById('error')
+        };
+
+        function updateTrend() {
+            if (previousHeartRate === null || currentHeartRate === null) {
+                elements.trend.classList.add('hidden');
+                return;
+            }
+
+            if (currentHeartRate > previousHeartRate) {
+                elements.trend.textContent = '↑';
+                elements.trend.className = 'trend up';
+            } else if (currentHeartRate < previousHeartRate) {
+                elements.trend.textContent = '↓';
+                elements.trend.className = 'trend down';
+            } else {
+                elements.trend.classList.add('hidden');
+            }
+        }
+
+        function updateStatus(heartRate) {
+            if (heartRate < 65) {
+                elements.status.textContent = 'sleepy';
+                elements.status.className = 'status sleepy';
+            } else if (heartRate > 95) {
+                elements.status.textContent = 'hot';
+                elements.status.className = 'status hot';
+            } else {
+                elements.status.textContent = '';
+                elements.status.className = 'status normal';
+            }
+        }
+
+        async function fetchHeartRate() {
+            try {
+                const url = `${CORS_PROXY}${encodeURIComponent(API_URL)}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${ACCESS_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                previousHeartRate = currentHeartRate;
+                currentHeartRate = data.data.heart_rate;
+
+                // Update display
+                elements.heartRate.textContent = currentHeartRate;
+                elements.heartRate.classList.remove('loading');
+                elements.error.style.display = 'none';
+
+                updateTrend();
+                updateStatus(currentHeartRate);
+
+            } catch (error) {
+                console.error('Error fetching heart rate:', error);
+                elements.error.textContent = `Error: ${error.message}`;
+                elements.error.style.display = 'block';
+            }
+        }
+
+        // Initial fetch
+        fetchHeartRate();
+
+        // Set up periodic updates
+        setInterval(fetchHeartRate, UPDATE_INTERVAL);
+    </script>
+</body>
+</html>
