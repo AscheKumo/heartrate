@@ -24,7 +24,7 @@
 
         .container {
             text-align: center;
-            max-width: 800px;
+            max-width: 1200px;
             width: 100%;
         }
 
@@ -110,7 +110,7 @@
 
         #heartRateGraph {
             width: 100%;
-            height: 200px;
+            height: 300px;
             display: block;
         }
 
@@ -149,7 +149,10 @@
         const ACCESS_TOKEN = 'ed500451-96a9-46ef-b648-91c79efd470d';
         const CORS_PROXY = 'https://corsproxy.io/?';
         const UPDATE_INTERVAL = 2000; // Update every 2 seconds
-        const TWO_MINUTES = 120000; // 2 minutes in milliseconds
+        const TEN_MINUTES = 600000; // 10 minutes in milliseconds
+        const MIN_BPM = 35;
+        const MAX_BPM = 145;
+        const BPM_RANGE = MAX_BPM - MIN_BPM;
 
         let previousHeartRate = null;
         let currentHeartRate = null;
@@ -177,6 +180,11 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
+        function bpmToY(bpm, height) {
+            const normalized = (bpm - MIN_BPM) / BPM_RANGE;
+            return height - (normalized * height);
+        }
+
         function drawGraph() {
             const width = canvas.width / window.devicePixelRatio;
             const height = canvas.height / window.devicePixelRatio;
@@ -184,66 +192,84 @@
             // Clear canvas
             ctx.clearRect(0, 0, width, height);
 
-            // Draw grid
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            // Draw BPM reference lines
+            // Blue lines every 5 bpm (except 65 and 95)
             ctx.lineWidth = 1;
-            
-            // Horizontal grid lines
-            for (let i = 0; i <= 5; i++) {
-                const y = (height / 5) * i;
+            for (let bpm = MIN_BPM; bpm <= MAX_BPM; bpm += 5) {
+                if (bpm === 65 || bpm === 95) continue; // Skip threshold lines
+                
+                const y = bpmToY(bpm, height);
+                ctx.strokeStyle = 'rgba(68, 170, 255, 0.2)';
                 ctx.beginPath();
                 ctx.moveTo(0, y);
                 ctx.lineTo(width, y);
                 ctx.stroke();
             }
 
-            // Vertical grid lines
-            for (let i = 0; i <= 12; i++) {
-                const x = (width / 12) * i;
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, height);
-                ctx.stroke();
-            }
+            // Red lines at 65 and 95 bpm
+            ctx.strokeStyle = 'rgba(255, 68, 68, 0.5)';
+            ctx.lineWidth = 2;
+            
+            // 95 bpm line
+            let y = bpmToY(95, height);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+            
+            // 65 bpm line
+            y = bpmToY(65, height);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
 
             if (heartRateData.length < 2) return;
 
-            // Remove data older than 2 minutes
+            // Remove data older than 10 minutes
             const now = Date.now();
-            heartRateData = heartRateData.filter(d => now - d.timestamp <= TWO_MINUTES);
+            heartRateData = heartRateData.filter(d => now - d.timestamp <= TEN_MINUTES);
 
-            // Calculate min and max for scaling
-            const heartRates = heartRateData.map(d => d.heartRate);
-            const minHR = Math.min(...heartRates, 40);
-            const maxHR = Math.max(...heartRates, 120);
-            const range = maxHR - minHR;
-            const padding = range * 0.2; // 20% padding
-
-            // Draw heart rate line
-            ctx.strokeStyle = '#00ff41';
+            // Draw heart rate line with color changes for spikes/drops
             ctx.lineWidth = 2;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            
-            // Add glow effect
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#00ff41';
 
-            ctx.beginPath();
-            
-            heartRateData.forEach((data, index) => {
-                const x = width - ((now - data.timestamp) / TWO_MINUTES) * width;
-                const normalizedHR = (data.heartRate - (minHR - padding)) / (range + padding * 2);
-                const y = height - (normalizedHR * height);
+            for (let i = 1; i < heartRateData.length; i++) {
+                const prevData = heartRateData[i - 1];
+                const currData = heartRateData[i];
+                
+                const x1 = width - ((now - prevData.timestamp) / TEN_MINUTES) * width;
+                const y1 = bpmToY(prevData.heartRate, height);
+                const x2 = width - ((now - currData.timestamp) / TEN_MINUTES) * width;
+                const y2 = bpmToY(currData.heartRate, height);
 
-                if (index === 0) {
-                    ctx.moveTo(x, y);
+                // Calculate heart rate change
+                const hrChange = currData.heartRate - prevData.heartRate;
+                
+                // Determine color based on spike/drop
+                if (hrChange >= 10) {
+                    // Spike - red
+                    ctx.strokeStyle = '#ff4444';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#ff4444';
+                } else if (hrChange <= -10) {
+                    // Drop - blue
+                    ctx.strokeStyle = '#44aaff';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#44aaff';
                 } else {
-                    ctx.lineTo(x, y);
+                    // Normal - green
+                    ctx.strokeStyle = '#00ff41';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#00ff41';
                 }
-            });
 
-            ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
             
             // Reset shadow
             ctx.shadowBlur = 0;
@@ -251,14 +277,25 @@
             // Draw current value indicator
             if (heartRateData.length > 0) {
                 const lastData = heartRateData[heartRateData.length - 1];
-                const normalizedHR = (lastData.heartRate - (minHR - padding)) / (range + padding * 2);
-                const y = height - (normalizedHR * height);
+                const y = bpmToY(lastData.heartRate, height);
                 
                 ctx.fillStyle = '#00ff41';
                 ctx.beginPath();
                 ctx.arc(width, y, 4, 0, Math.PI * 2);
                 ctx.fill();
             }
+
+            // Draw BPM labels
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '12px monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            
+            // Label key BPM values
+            [35, 65, 95, 145].forEach(bpm => {
+                const y = bpmToY(bpm, height);
+                ctx.fillText(bpm, width - 5, y);
+            });
         }
 
         function animate() {
