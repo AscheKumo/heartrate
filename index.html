@@ -151,7 +151,7 @@
         const UPDATE_INTERVAL = 2000; // Update every 2 seconds
         const TEN_MINUTES = 600000; // 10 minutes in milliseconds
         const MIN_BPM = 35;
-        const MAX_BPM = 145;
+        const MAX_BPM = 125;
         const BPM_RANGE = MAX_BPM - MIN_BPM;
 
         let previousHeartRate = null;
@@ -292,7 +292,7 @@
             ctx.textBaseline = 'middle';
             
             // Label key BPM values
-            [35, 65, 95, 145].forEach(bpm => {
+            [35, 65, 95, 125].forEach(bpm => {
                 const y = bpmToY(bpm, height);
                 ctx.fillText(bpm, width - 5, y);
             });
