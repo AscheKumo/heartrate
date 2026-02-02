@@ -5,66 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Ashlyn's Heartrate</title>
   <style>
-    html,body {
-      height: 100%;
-      margin: 0;
-      background: #000;
-      color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      overflow: hidden;
-    }
-
-    .wrap {
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .card {
-      text-align: center;
-      line-height: 1;
-      user-select: none;
-    }
-
-    .title {
-      font-size: 18px;
-      font-weight: 600;
-      opacity: 0.95;
-      margin-bottom: 10px;
-      letter-spacing: 0.6px;
-    }
-
-    .bpm {
-      font-size: 72px;
-      font-weight: 700;
-      margin: 0;
-      padding: 0;
-      letter-spacing: -1px;
-    }
-
-    .graph {
-      display: block;
-      margin: 10px auto 0;
-      width: 240px;
-      height: 40px;
-    }
-
-    .muted {
-      opacity: 0.65;
-    }
-
-    /* tiny status line for debugging (very subtle) */
-    .status {
-      font-size: 10px;
-      color: rgba(255,255,255,0.35);
-      margin-top: 6px;
-      height: 12px;
-      line-height: 12px;
-      letter-spacing: 0.2px;
-    }
+    html,body { height:100%; margin:0; background:#000; color:#fff; font-family:system-ui,Arial; overflow:hidden; }
+    .wrap { height:100%; display:flex; align-items:center; justify-content:center; }
+    .card { text-align:center; user-select:none; }
+    .title { font-size:18px; font-weight:600; margin-bottom:10px; }
+    .bpm { font-size:72px; font-weight:700; margin:0; }
+    .graph { display:block; margin:10px auto 0; width:240px; height:40px; }
+    .muted { opacity:0.65; }
+    .status { font-size:10px; color:rgba(255,255,255,0.35); margin-top:6px; height:12px; }
   </style>
 </head>
 <body>
@@ -78,8 +26,9 @@
   </div>
 
   <script>
-    const API_URL = 'https://dev.pulsoid.net/api/v1/data/heart_rate/latest?response_mode=text_plain_only_heart_rate';
-    const TOKEN = 'ed500451-96a9-46ef-b648-91c79efd470d';
+    // Set this to your Cloudflare Worker URL (no Authorization header required here)
+    // e.g. 'https://my-pulsoid-proxy.example.workers.dev/heart'
+    const API_URL = 'https://your-worker.example.workers.dev/heart';
     const POLL_INTERVAL_MS = 500;
     const MAX_POINTS = 40;
 
@@ -88,7 +37,6 @@
     const canvas = document.getElementById('spark');
     const ctx = canvas.getContext('2d');
 
-    // scale canvas for DPR
     function scaleCanvas() {
       const dpr = window.devicePixelRatio || 1;
       const styleW = canvas.clientWidth;
@@ -98,10 +46,7 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     scaleCanvas();
-    window.addEventListener('resize', () => {
-      scaleCanvas();
-      drawSparkline();
-    });
+    window.addEventListener('resize', () => { scaleCanvas(); drawSparkline(); });
 
     const history = [];
 
@@ -123,8 +68,7 @@
     function drawSparkline() {
       const w = canvas.width / (window.devicePixelRatio || 1);
       const h = canvas.height / (window.devicePixelRatio || 1);
-      ctx.clearRect(0, 0, w, h);
-
+      ctx.clearRect(0,0,w,h);
       const vals = history.filter(v => v != null && Number.isFinite(v));
       if (vals.length === 0) {
         ctx.strokeStyle = 'rgba(255,255,255,0.07)';
@@ -137,44 +81,25 @@
         ctx.setLineDash([]);
         return;
       }
-
-      let min = Math.min(...vals);
-      let max = Math.max(...vals);
-      if (min === max) {
-        min = min - 3;
-        max = max + 3;
-      }
+      let min = Math.min(...vals), max = Math.max(...vals);
+      if (min === max) { min = min - 3; max = max + 3; }
       const range = max - min || 1;
-
-      ctx.fillStyle = 'rgba(255,255,255,0.02)';
-      ctx.fillRect(0, 0, w, h);
-
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-
+      ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.6; ctx.beginPath();
       const step = w / (MAX_POINTS - 1);
       let x = 0;
-      for (let i = 0; i < history.length; i++) {
+      for (let i=0;i<history.length;i++){
         const v = history[i];
-        if (v == null || !Number.isFinite(v)) {
-          x += step;
-          continue;
-        }
+        if (v == null || !Number.isFinite(v)) { x += step; continue; }
         const y = h - ((v - min) / range) * h;
-        if (i === 0 || history[i-1] == null || !Number.isFinite(history[i-1])) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
+        if (i === 0 || history[i-1] == null) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         x += step;
       }
       ctx.stroke();
-
       const lastIndex = history.length - 1;
       const lastVal = history[lastIndex];
       if (lastVal != null && Number.isFinite(lastVal)) {
-        const lastX = Math.min(w, (lastIndex) * step);
+        const lastX = Math.min(w, lastIndex * step);
         const lastY = h - ((lastVal - min) / range) * h;
         ctx.fillStyle = '#fff';
         ctx.beginPath();
@@ -183,86 +108,31 @@
       }
     }
 
-    // robust fetch that handles JSON and plain text responses and updates status
     async function fetchHeartRate() {
       try {
-        const res = await fetch(API_URL, {
-          method: 'GET',
-          headers: {
-            'Authorization': 'Bearer ' + TOKEN
-            // do NOT set Content-Type for GET — not needed
-          },
-          cache: 'no-store'
-        });
-
-        statusEl.textContent = `HTTP ${res.status} ${res.statusText}`;
-        // If preflight/CORS blocked, you'll see errors in the console and network tab; the fetch call will throw.
-
+        const res = await fetch(API_URL, { method: 'GET', cache: 'no-store' });
+        statusEl.textContent = `HTTP ${res.status}`;
         if (res.status === 412) {
-          pushValue(null);
-          setBpmDisplay(null);
-          drawSparkline();
-          return;
+          pushValue(null); setBpmDisplay(null); drawSparkline(); return;
         }
         if (!res.ok) {
-          pushValue(null);
-          setBpmDisplay(null);
-          drawSparkline();
-          console.warn('Fetch returned non-ok status', res.status);
-          return;
+          pushValue(null); setBpmDisplay(null); drawSparkline(); return;
         }
-
-        const contentType = res.headers.get('Content-Type') || '';
-        let heart = null;
-
-        if (contentType.includes('application/json')) {
-          const json = await res.json();
-          // expected structure: { measured_at:..., data: { heart_rate: number } }
-          if (json && json.data && Number.isFinite(json.data.heart_rate)) {
-            heart = Number(json.data.heart_rate);
-          } else {
-            console.warn('JSON received but missing data.heart_rate', json);
-          }
+        const txt = await res.text();
+        const parsed = Number(txt.trim());
+        if (Number.isFinite(parsed)) {
+          pushValue(parsed); setBpmDisplay(parsed);
         } else {
-          // try text/plain or other — parse a number from the response body
-          const txt = await res.text();
-          const parsed = Number(txt.trim());
-          if (Number.isFinite(parsed)) {
-            heart = parsed;
-          } else {
-            // fallback: maybe server returned JSON without correct content-type
-            try {
-              const maybeJson = JSON.parse(txt);
-              if (maybeJson && maybeJson.data && Number.isFinite(maybeJson.data.heart_rate)) {
-                heart = Number(maybeJson.data.heart_rate);
-              } else {
-                console.warn('Text received but parsing as JSON did not yield heart_rate', txt);
-              }
-            } catch (e) {
-              console.warn('Unable to parse response as number or JSON', txt);
-            }
-          }
-        }
-
-        if (heart != null) {
-          pushValue(heart);
-          setBpmDisplay(heart);
-        } else {
-          pushValue(null);
-          setBpmDisplay(null);
+          pushValue(null); setBpmDisplay(null);
         }
         drawSparkline();
       } catch (err) {
-        // network, CORS, or other fetch error
         console.error('Fetch error', err);
         statusEl.textContent = err && err.message ? err.message : String(err);
-        pushValue(null);
-        setBpmDisplay(null);
-        drawSparkline();
+        pushValue(null); setBpmDisplay(null); drawSparkline();
       }
     }
 
-    // start polling
     fetchHeartRate();
     setInterval(fetchHeartRate, POLL_INTERVAL_MS);
   </script>
