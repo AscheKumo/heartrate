@@ -1,519 +1,270 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ashlyn's Heart Rate</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ashlyn's Heartrate</title>
+  <style>
+    html,body {
+      height: 100%;
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: hidden;
+    }
 
-        body {
-            background-color: #000;
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
+    .wrap {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-        .container {
-            text-align: center;
-            max-width: 1200px;
-            width: 100%;
-        }
+    .card {
+      text-align: center;
+      line-height: 1;
+      user-select: none;
+    }
 
-        .title {
-            font-size: 24px;
-            font-weight: 300;
-            margin-bottom: 40px;
-            opacity: 0.8;
-        }
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      opacity: 0.95;
+      margin-bottom: 10px;
+      letter-spacing: 0.6px;
+    }
 
-        .heart-rate-display {
-            position: relative;
-            margin-bottom: 30px;
-        }
+    .bpm {
+      font-size: 72px;
+      font-weight: 700;
+      margin: 0;
+      padding: 0;
+      letter-spacing: -1px;
+    }
 
-        .heart-rate {
-            font-size: 96px;
-            font-weight: 700;
-            line-height: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
+    .graph {
+      display: block;
+      margin: 10px auto 0;
+      width: 240px;
+      height: 40px;
+    }
 
-        .heart-icon {
-            font-size: 80px;
-            color: #ff4444;
-            animation: heartbeat 1s ease-in-out infinite;
-        }
+    .muted {
+      opacity: 0.65;
+    }
 
-        @keyframes heartbeat {
-            0%, 100% { transform: scale(1); }
-            10% { transform: scale(1.2); }
-            20% { transform: scale(1); }
-        }
-
-        .bpm {
-            font-size: 24px;
-            font-weight: 300;
-            opacity: 0.6;
-        }
-
-        .trend {
-            font-size: 40px;
-            opacity: 0.8;
-            transition: opacity 0.3s;
-        }
-
-        .trend.up {
-            color: #ff4444;
-        }
-
-        .trend.down {
-            color: #44aaff;
-        }
-
-        .trend.hidden {
-            opacity: 0;
-        }
-
-        .status {
-            font-size: 20px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            display: inline-block;
-            margin-top: 20px;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .status.sleepy {
-            background-color: rgba(100, 149, 237, 0.2);
-            color: #6495ed;
-        }
-
-        .status.hot {
-            background-color: rgba(255, 68, 68, 0.2);
-            color: #ff4444;
-        }
-
-        .status.normal {
-            background-color: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            opacity: 0.6;
-        }
-
-        .controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .btn {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-
-        .btn:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .btn.active {
-            background-color: rgba(0, 255, 65, 0.2);
-            border-color: #00ff41;
-        }
-
-        .graph-container {
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 20px;
-            background-color: rgba(0, 0, 0, 0.5);
-            position: relative;
-        }
-
-        #heartRateGraph {
-            width: 100%;
-            height: 300px;
-            display: block;
-        }
-
-        .error {
-            color: #ff4444;
-            font-size: 14px;
-            opacity: 0.8;
-            margin-top: 20px;
-        }
-
-        .loading {
-            opacity: 0.5;
-        }
-    </style>
+    /* tiny status line for debugging (very subtle) */
+    .status {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 6px;
+      height: 12px;
+      line-height: 12px;
+      letter-spacing: 0.2px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="title">ashlyns heartrate</div>
-
-        <div class="heart-rate-display">
-            <div class="heart-rate">
-                <span class="heart-icon" id="heartIcon">♥</span>
-                <span id="heartRateValue" class="loading">--</span>
-                <span id="trend" class="trend hidden"></span>
-            </div>
-            <div class="bpm">bpm</div>
-        </div>
-        
-        <div id="status" class="status normal"></div>
-
-        <div class="controls">
-            <button class="btn" id="avgToggle">Show Average Line</button>
-            <button class="btn" id="fullscreenBtn">Fullscreen</button>
-        </div>
-
-        <div id="error" class="error" style="display: none;"></div>
-        
-        <div class="graph-container" id="graphContainer">
-            <canvas id="heartRateGraph"></canvas>
-        </div>
+  <div class="wrap">
+    <div class="card" aria-live="polite">
+      <div class="title">Ashlyn's Heartrate</div>
+      <div id="bpm" class="bpm muted">— BPM</div>
+      <canvas id="spark" class="graph" width="240" height="40" aria-hidden="true"></canvas>
+      <div id="status" class="status" aria-hidden="true">waiting…</div>
     </div>
+  </div>
 
-    <script>
-        const API_URL = 'https://dev.pulsoid.net/api/v1/data/heart_rate/latest';
-        const ACCESS_TOKEN = 'ed500451-96a9-46ef-b648-91c79efd470d';
-        const CORS_PROXY = 'https://corsproxy.io/?';
-        const UPDATE_INTERVAL = 1000;
-        const TEN_MINUTES = 600000;
-        const MIN_BPM = 35;
-        const MAX_BPM = 125;
-        const BPM_RANGE = MAX_BPM - MIN_BPM;
+  <script>
+    const API_URL = 'https://dev.pulsoid.net/api/v1/data/heart_rate/latest?response_mode=text_plain_only_heart_rate';
+    const TOKEN = 'ed500451-96a9-46ef-b648-91c79efd470d';
+    const POLL_INTERVAL_MS = 500;
+    const MAX_POINTS = 40;
 
-        let previousHeartRate = null;
-        let currentHeartRate = null;
-        let heartRateData = [];
-        let showAverage = false;
-        let particles = [];
+    const bpmEl = document.getElementById('bpm');
+    const statusEl = document.getElementById('status');
+    const canvas = document.getElementById('spark');
+    const ctx = canvas.getContext('2d');
 
-        const elements = {
-            heartRate: document.getElementById('heartRateValue'),
-            heartIcon: document.getElementById('heartIcon'),
-            trend: document.getElementById('trend'),
-            status: document.getElementById('status'),
-            error: document.getElementById('error'),
-            avgToggle: document.getElementById('avgToggle'),
-            fullscreenBtn: document.getElementById('fullscreenBtn'),
-            graphContainer: document.getElementById('graphContainer')
-        };
+    // scale canvas for DPR
+    function scaleCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const styleW = canvas.clientWidth;
+      const styleH = canvas.clientHeight;
+      canvas.width = Math.max(1, Math.floor(styleW * dpr));
+      canvas.height = Math.max(1, Math.floor(styleH * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    scaleCanvas();
+    window.addEventListener('resize', () => {
+      scaleCanvas();
+      drawSparkline();
+    });
 
-        // Canvas setup
-        const canvas = document.getElementById('heartRateGraph');
-        const ctx = canvas.getContext('2d');
+    const history = [];
 
-        function resizeCanvas() {
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * window.devicePixelRatio;
-            canvas.height = rect.height * window.devicePixelRatio;
-            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    function setBpmDisplay(value) {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        bpmEl.textContent = value + ' BPM';
+        bpmEl.classList.remove('muted');
+      } else {
+        bpmEl.textContent = '— BPM';
+        bpmEl.classList.add('muted');
+      }
+    }
+
+    function pushValue(v) {
+      history.push(v == null ? null : Number(v));
+      while (history.length > MAX_POINTS) history.shift();
+    }
+
+    function drawSparkline() {
+      const w = canvas.width / (window.devicePixelRatio || 1);
+      const h = canvas.height / (window.devicePixelRatio || 1);
+      ctx.clearRect(0, 0, w, h);
+
+      const vals = history.filter(v => v != null && Number.isFinite(v));
+      if (vals.length === 0) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2,3]);
+        ctx.beginPath();
+        ctx.moveTo(0, h/2);
+        ctx.lineTo(w, h/2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        return;
+      }
+
+      let min = Math.min(...vals);
+      let max = Math.max(...vals);
+      if (min === max) {
+        min = min - 3;
+        max = max + 3;
+      }
+      const range = max - min || 1;
+
+      ctx.fillStyle = 'rgba(255,255,255,0.02)';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+
+      const step = w / (MAX_POINTS - 1);
+      let x = 0;
+      for (let i = 0; i < history.length; i++) {
+        const v = history[i];
+        if (v == null || !Number.isFinite(v)) {
+          x += step;
+          continue;
         }
+        const y = h - ((v - min) / range) * h;
+        if (i === 0 || history[i-1] == null || !Number.isFinite(history[i-1])) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+        x += step;
+      }
+      ctx.stroke();
 
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+      const lastIndex = history.length - 1;
+      const lastVal = history[lastIndex];
+      if (lastVal != null && Number.isFinite(lastVal)) {
+        const lastX = Math.min(w, (lastIndex) * step);
+        const lastY = h - ((lastVal - min) / range) * h;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(lastX, lastY, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
-        // Toggle average line
-        elements.avgToggle.addEventListener('click', () => {
-            showAverage = !showAverage;
-            elements.avgToggle.classList.toggle('active', showAverage);
-            elements.avgToggle.textContent = showAverage ? 'Hide Average Line' : 'Show Average Line';
+    // robust fetch that handles JSON and plain text responses and updates status
+    async function fetchHeartRate() {
+      try {
+        const res = await fetch(API_URL, {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + TOKEN
+            // do NOT set Content-Type for GET — not needed
+          },
+          cache: 'no-store'
         });
 
-        // Fullscreen toggle
-        elements.fullscreenBtn.addEventListener('click', () => {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-                elements.fullscreenBtn.textContent = 'Exit Fullscreen';
-            } else {
-                document.exitFullscreen();
-                elements.fullscreenBtn.textContent = 'Fullscreen';
-            }
-        });
+        statusEl.textContent = `HTTP ${res.status} ${res.statusText}`;
+        // If preflight/CORS blocked, you'll see errors in the console and network tab; the fetch call will throw.
 
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                elements.fullscreenBtn.textContent = 'Fullscreen';
-            }
-        });
-
-        // Heart pulse animation
-        function updateHeartPulse(bpm) {
-            if (!bpm) return;
-            const duration = 60000 / bpm; // milliseconds per beat
-            elements.heartIcon.style.animation = `heartbeat ${duration}ms ease-in-out infinite`;
+        if (res.status === 412) {
+          pushValue(null);
+          setBpmDisplay(null);
+          drawSparkline();
+          return;
+        }
+        if (!res.ok) {
+          pushValue(null);
+          setBpmDisplay(null);
+          drawSparkline();
+          console.warn('Fetch returned non-ok status', res.status);
+          return;
         }
 
-        // Particle system
-        class Particle {
-            constructor(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.vx = (Math.random() - 0.5) * 2;
-                this.vy = (Math.random() - 0.5) * 2;
-                this.life = 1.0;
-                this.color = color;
-            }
-            
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= 0.02;
-                this.vy += 0.1; // gravity
-            }
-            
-            draw(ctx) {
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.life;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1;
-            }
-        }
+        const contentType = res.headers.get('Content-Type') || '';
+        let heart = null;
 
-        function createParticles(x, y, color, count = 10) {
-            for (let i = 0; i < count; i++) {
-                particles.push(new Particle(x, y, color));
-            }
-        }
-
-        function updateParticles() {
-            particles = particles.filter(p => p.life > 0);
-            particles.forEach(p => p.update());
-        }
-
-        function bpmToY(bpm, height) {
-            const normalized = (bpm - MIN_BPM) / BPM_RANGE;
-            return height - (normalized * height);
-        }
-
-        function drawGraph() {
-            const width = canvas.width / window.devicePixelRatio;
-            const height = canvas.height / window.devicePixelRatio;
-            
-            ctx.clearRect(0, 0, width, height);
-
-            // Draw BPM reference lines
-            ctx.lineWidth = 1;
-            for (let bpm = MIN_BPM; bpm <= MAX_BPM; bpm += 5) {
-                if (bpm === 65 || bpm === 95) continue;
-                
-                const y = bpmToY(bpm, height);
-                ctx.strokeStyle = 'rgba(68, 170, 255, 0.2)';
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(width, y);
-                ctx.stroke();
-            }
-
-            // Red lines at 65 and 95 bpm
-            ctx.strokeStyle = 'rgba(255, 68, 68, 0.5)';
-            ctx.lineWidth = 2;
-            
-            let y = bpmToY(95, height);
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
-            ctx.stroke();
-            
-            y = bpmToY(65, height);
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
-            ctx.stroke();
-
-            if (heartRateData.length < 2) return;
-
-            const now = Date.now();
-            heartRateData = heartRateData.filter(d => now - d.timestamp <= TEN_MINUTES);
-
-            // Draw average line if enabled
-            if (showAverage && heartRateData.length > 0) {
-                const heartRates = heartRateData.map(d => d.heartRate);
-                const avg = heartRates.reduce((a, b) => a + b, 0) / heartRates.length;
-                const avgY = bpmToY(avg, height);
-                
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-                ctx.moveTo(0, avgY);
-                ctx.lineTo(width, avgY);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            // Draw heart rate line with color changes
-            ctx.lineWidth = 2;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            for (let i = 1; i < heartRateData.length; i++) {
-                const prevData = heartRateData[i - 1];
-                const currData = heartRateData[i];
-                
-                const x1 = width - ((now - prevData.timestamp) / TEN_MINUTES) * width;
-                const y1 = bpmToY(prevData.heartRate, height);
-                const x2 = width - ((now - currData.timestamp) / TEN_MINUTES) * width;
-                const y2 = bpmToY(currData.heartRate, height);
-
-                const hrChange = currData.heartRate - prevData.heartRate;
-                
-                let color;
-                if (hrChange >= 10) {
-                    color = '#ff4444';
-                    // Create particles on spike
-                    if (i === heartRateData.length - 1) {
-                        createParticles(x2, y2, color, 5);
-                    }
-                } else if (hrChange <= -10) {
-                    color = '#44aaff';
-                    // Create particles on drop
-                    if (i === heartRateData.length - 1) {
-                        createParticles(x2, y2, color, 5);
-                    }
-                } else {
-                    color = '#00ff41';
-                }
-                
-                ctx.strokeStyle = color;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = color;
-
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.stroke();
-            }
-            
-            ctx.shadowBlur = 0;
-
-            // Draw particles
-            particles.forEach(p => p.draw(ctx));
-
-            // Draw current value indicator
-            if (heartRateData.length > 0) {
-                const lastData = heartRateData[heartRateData.length - 1];
-                const y = bpmToY(lastData.heartRate, height);
-                
-                ctx.fillStyle = '#00ff41';
-                ctx.beginPath();
-                ctx.arc(width, y, 4, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Draw BPM labels
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.font = '12px monospace';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            
-            [35, 65, 95, 125].forEach(bpm => {
-                const y = bpmToY(bpm, height);
-                ctx.fillText(bpm, width - 5, y);
-            });
-        }
-
-        function animate() {
-            drawGraph();
-            updateParticles();
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-
-        function updateTrend() {
-            if (previousHeartRate === null || currentHeartRate === null) {
-                elements.trend.classList.add('hidden');
-                return;
-            }
-
-            if (currentHeartRate > previousHeartRate) {
-                elements.trend.textContent = '↑';
-                elements.trend.className = 'trend up';
-            } else if (currentHeartRate < previousHeartRate) {
-                elements.trend.textContent = '↓';
-                elements.trend.className = 'trend down';
-            } else {
-                elements.trend.classList.add('hidden');
-            }
-        }
-
-        function updateStatus(heartRate) {
-            if (heartRate < 65) {
-                elements.status.textContent = 'sleepy';
-                elements.status.className = 'status sleepy';
-            } else if (heartRate > 95) {
-                elements.status.textContent = 'hot';
-                elements.status.className = 'status hot';
-            } else {
-                elements.status.textContent = '';
-                elements.status.className = 'status normal';
-            }
-        }
-
-        async function fetchHeartRate() {
+        if (contentType.includes('application/json')) {
+          const json = await res.json();
+          // expected structure: { measured_at:..., data: { heart_rate: number } }
+          if (json && json.data && Number.isFinite(json.data.heart_rate)) {
+            heart = Number(json.data.heart_rate);
+          } else {
+            console.warn('JSON received but missing data.heart_rate', json);
+          }
+        } else {
+          // try text/plain or other — parse a number from the response body
+          const txt = await res.text();
+          const parsed = Number(txt.trim());
+          if (Number.isFinite(parsed)) {
+            heart = parsed;
+          } else {
+            // fallback: maybe server returned JSON without correct content-type
             try {
-                const url = `${CORS_PROXY}${encodeURIComponent(API_URL)}`;
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${ACCESS_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                previousHeartRate = currentHeartRate;
-                currentHeartRate = data.data.heart_rate;
-
-                heartRateData.push({
-                    timestamp: Date.now(),
-                    heartRate: currentHeartRate
-                });
-
-                elements.heartRate.textContent = currentHeartRate;
-                elements.heartRate.classList.remove('loading');
-                elements.error.style.display = 'none';
-
-                updateTrend();
-                updateStatus(currentHeartRate);
-                updateHeartPulse(currentHeartRate);
-
-            } catch (error) {
-                console.error('Error fetching heart rate:', error);
-                elements.error.textContent = `Error: ${error.message}`;
-                elements.error.style.display = 'block';
+              const maybeJson = JSON.parse(txt);
+              if (maybeJson && maybeJson.data && Number.isFinite(maybeJson.data.heart_rate)) {
+                heart = Number(maybeJson.data.heart_rate);
+              } else {
+                console.warn('Text received but parsing as JSON did not yield heart_rate', txt);
+              }
+            } catch (e) {
+              console.warn('Unable to parse response as number or JSON', txt);
             }
+          }
         }
 
-        fetchHeartRate();
-        setInterval(fetchHeartRate, UPDATE_INTERVAL);
-    </script>
+        if (heart != null) {
+          pushValue(heart);
+          setBpmDisplay(heart);
+        } else {
+          pushValue(null);
+          setBpmDisplay(null);
+        }
+        drawSparkline();
+      } catch (err) {
+        // network, CORS, or other fetch error
+        console.error('Fetch error', err);
+        statusEl.textContent = err && err.message ? err.message : String(err);
+        pushValue(null);
+        setBpmDisplay(null);
+        drawSparkline();
+      }
+    }
+
+    // start polling
+    fetchHeartRate();
+    setInterval(fetchHeartRate, POLL_INTERVAL_MS);
+  </script>
 </body>
 </html>
